@@ -17,7 +17,7 @@ $(OBJECTS): %.o: %.cpp
 	$(SYSCONF_LINK) -Wall $(CPPFLAGS) -c $(CFLAGS) $< -o $@
 
 clean:
-	-rm -f $(OBJECTS)
-	-rm -f $(TARGET)
-	-rm -f *.tga
+	-del -f $(OBJECTS)
+	-del -f $(TARGET)
+	-del -f *.tga
 
