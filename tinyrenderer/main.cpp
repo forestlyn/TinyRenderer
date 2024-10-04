@@ -46,73 +46,48 @@ void line(Vec2i t0, Vec2i t1, TGAImage &image, TGAColor color)
 {
 	line(t0.x, t0.y, t1.x, t1.y, image, color);
 }
-bool inRange(int x, int x0, int x1)
+
+Vec3f barycentric(Vec2i ab, Vec2i ac, Vec2i pa)
 {
-	if (x <= x0 && x >= x1)
-		return true;
-	if (x >= x0 && x <= x1)
-		return true;
-	return false;
+	Vec3f u = Vec3f(ab.x, ac.x, pa.x) ^ Vec3f(ab.y, ac.y, pa.y);
+	if (abs(u.z) < 1)
+	{
+		return Vec3f(1, 1, -1);
+	}
+	return Vec3f(1 - u.x / u.z - u.y / u.z, u.x / u.z, u.y / u.z);
 }
-Vec2i calculateIntersection(int x, Vec2i t0, Vec2i t1, Vec2i t2)
+
+Vec3f barycentric(Vec2i a, Vec2i b, Vec2i c, Vec2i p)
 {
-	float dx1 = t1.x - t0.x;
-	float dx2 = t2.x - t1.x;
-	float dx3 = t0.x - t2.x;
-	float dy1 = t1.y - t0.y;
-	float dy2 = t2.y - t1.y;
-	float dy3 = t0.y - t2.y;
-	float y1 = -1;
-	// 注意dx=0
-	if (x == t0.x)
-		y1 = t0.y;
-	else if (dx1 != 0 && inRange(x, t0.x, t1.x))
-	{
-		y1 = (x - t0.x) / dx1 * dy1 + t0.y;
-	}
-	// printf("1 %f\n", y1);
-	float y2 = -1;
-	if (x == t1.x)
-		y2 = t1.y;
-	else if (dx2 != 0 && inRange(x, t1.x, t2.x))
-	{
-		y2 = (x - t1.x) / dx2 * dy2 + t1.y;
-	}
-	// printf("2 %f\n", y2);
-	float y3 = -1;
-	if (x == t2.x)
-		y3 = t2.y;
-	else if (dx3 != 0 && inRange(x, t0.x, t2.x))
-	{
-		y3 = (x - t2.x) / dx3 * dy3 + t2.y;
-	}
-	// printf("3 %f\n", y3);
-	if (y1 == -1)
-		return Vec2i(y2, y3);
-	if (y2 == -1)
-		return Vec2i(y1, y3);
-	if (y3 == -1)
-		return Vec2i(y1, y2);
-	if (y1 == y2 || y1 == y3)
-		return Vec2i(y2, y3);
-	if (y2 == y3)
-		return Vec2i(y1, y3);
-	return Vec2i(y1, y2);
+	return barycentric(Vec2i(b.x - a.x, b.y - a.y),
+					   Vec2i(c.x - a.x, c.y - a.y),
+					   Vec2i(a.x - p.x, a.y - p.y));
 }
 
 void triangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColor color)
 {
-	int minx = t0.x < t1.x ? t0.x : t1.x;
-	minx = minx < t2.x ? minx : t2.x;
-	int maxx = t0.x < t1.x ? t1.x : t0.x;
-	maxx = maxx < t2.x ? t2.x : maxx;
-	// line(t0, t1, image, color);
-	// line(t1, t2, image, color);
-	// line(t2, t0, image, color);
+	int minx = std::min(t0.x, t1.x);
+	minx = std::min(minx, t2.x);
+	minx = std::max(minx, 0);
+	int maxx = std::max(t0.x, t1.x);
+	maxx = std::max(maxx, t2.x);
+	maxx = std::min(width - 1, maxx);
+	int miny = std::min(t0.y, t1.y);
+	miny = std::min(miny, t2.y);
+	miny = std::max(miny, 0);
+	int maxy = std::max(t0.y, t1.y);
+	maxy = std::max(maxy, t2.y);
+	maxy = std::min(height - 1, maxy);
+
 	for (int x = minx; x <= maxx; x++)
 	{
-		Vec2i res = calculateIntersection(x, t0, t1, t2);
-		line(x, res.x, x, res.y, image, color);
+		for (int y = miny; y <= maxy; y++)
+		{
+			Vec3f res = barycentric(t0, t1, t2, Vec2i(x, y));
+			if (res.x < 0 || res.y < 0 || res.z < 0)
+				continue;
+			image.set(x, y, color);
+		}
 	}
 }
 
