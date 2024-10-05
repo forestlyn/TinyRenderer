@@ -15,6 +15,8 @@ Model *model = NULL;
 const int width = 800;
 const int height = 800;
 
+FILE *f = NULL;
+
 void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color)
 {
 	int dx = abs(x0 - x1);
@@ -96,7 +98,7 @@ void triangle(Vec3f *pts, Vec3f *uvs, float *zbuffer, TGAImage &image, TGAImage 
 				TGAColor color;
 				Vec3f uv = uvs[0] * res.x + uvs[1] * res.y + uvs[2] * res.z;
 				color = uvImage.get(uv[0] * uvImage.get_width(), uv[1] * uvImage.get_height());
-				// printf("%f %f %f\n", uv.x, uv.y, uv.z);
+				fprintf(f, "%f %f %f\n", uv.x, uv.y, uv.z);
 				// printf("%f %f %f\n", uvs[0].x, uvs[0].y, uvs[0].z);
 				image.set(int(x), int(y), color);
 			}
@@ -127,7 +129,7 @@ int main(int argc, char **argv)
 	bool readSuccess = uvimage.read_tga_file("obj/african_head_diffuse.tga");
 	// have the origin at the left top corner of the image
 	uvimage.flip_vertically();
-
+	f = fopen("record.txt", "w");
 	if (readSuccess)
 	{
 		for (int i = 0; i < model->nfaces(); i++)
@@ -144,6 +146,7 @@ int main(int argc, char **argv)
 			triangle(pts, uvs, zbuffer, image, uvimage);
 		}
 	}
+	fclose(f);
 
 	image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
 	image.write_tga_file("output.tga");
