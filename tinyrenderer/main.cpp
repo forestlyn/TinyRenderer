@@ -1,5 +1,7 @@
 #include <vector>
 #include <cmath>
+#include <cstdlib>
+#include <limits>
 #include "tgaimage.h"
 #include "model.h"
 #include "geometry.h"
@@ -47,50 +49,59 @@ void line(Vec2i t0, Vec2i t1, TGAImage &image, TGAColor color)
 	line(t0.x, t0.y, t1.x, t1.y, image, color);
 }
 
-Vec3f barycentric(Vec2i ab, Vec2i ac, Vec2i pa)
+Vec3f barycentric(Vec3f ab, Vec3f ac, Vec3f pa)
 {
-	Vec3f u = Vec3f(ab.x, ac.x, pa.x) ^ Vec3f(ab.y, ac.y, pa.y);
-	if (abs(u.z) < 1)
+	Vec3f u = cross(Vec3f(ab.x, ac.x, pa.x), Vec3f(ab.y, ac.y, pa.y));
+	if (abs(u.z) < 1e-2)
 	{
 		return Vec3f(1, 1, -1);
 	}
+	// printf("%f %f %f\n", 1 - (u.x + u.y) / u.z, u.x / u.z, u.y / u.z);
 	return Vec3f(1 - (u.x + u.y) / u.z, u.x / u.z, u.y / u.z);
 }
 
-Vec3f barycentric(Vec2i a, Vec2i b, Vec2i c, Vec2i p)
+Vec3f barycentric(Vec3f a, Vec3f b, Vec3f c, Vec3f p)
 {
-	return barycentric(Vec2i(b.x - a.x, b.y - a.y),
-					   Vec2i(c.x - a.x, c.y - a.y),
-					   Vec2i(a.x - p.x, a.y - p.y));
+	return barycentric(b - a, c - a, a - p);
 }
 
-void triangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColor color)
+void triangle(Vec3f t0, Vec3f t1, Vec3f t2, float *zbuffer, TGAImage &image, TGAColor color)
 {
-	int minx = std::min(t0.x, t1.x);
+	float minx = std::min(t0.x, t1.x);
 	minx = std::min(minx, t2.x);
-	minx = std::max(minx, 0);
-	int maxx = std::max(t0.x, t1.x);
+	minx = std::max(minx, .0f);
+	float maxx = std::max(t0.x, t1.x);
 	maxx = std::max(maxx, t2.x);
-	maxx = std::min(width - 1, maxx);
-	int miny = std::min(t0.y, t1.y);
+	maxx = std::min(float(width - 1), maxx);
+	float miny = std::min(t0.y, t1.y);
 	miny = std::min(miny, t2.y);
-	miny = std::max(miny, 0);
-	int maxy = std::max(t0.y, t1.y);
+	miny = std::max(miny, .0f);
+	float maxy = std::max(t0.y, t1.y);
 	maxy = std::max(maxy, t2.y);
-	maxy = std::min(height - 1, maxy);
-
-	for (int x = minx; x <= maxx; x++)
+	maxy = std::min(float(height - 1), maxy);
+	// printf("%f %f %f %f \n", minx, maxx, miny, maxy);
+	for (float x = minx; x <= maxx; x += 1)
 	{
-		for (int y = miny; y <= maxy; y++)
+		for (float y = miny; y <= maxy; y += 1)
 		{
-			Vec3f res = barycentric(t0, t1, t2, Vec2i(x, y));
+			Vec3f res = barycentric(t0, t1, t2, Vec3f(x, y, 0));
 			if (res.x < 0 || res.y < 0 || res.z < 0)
 				continue;
-			image.set(x, y, color);
+			float z = 0;
+			z = res.x * t0.z + res.y * t1.z + res.z * t2.z;
+			// printf("%f %f\n", zbuffer[int(x + y * width)], z);
+			if (zbuffer[int(x + y * width)] < z)
+			{
+				zbuffer[int(x + y * width)] = z;
+				image.set(int(x), int(y), color);
+			}
 		}
 	}
 }
-
+Vec3f world2screen(Vec3f v)
+{
+	return Vec3f(int((v.x + 1.) * width / 2. + .5), int((v.y + 1.) * height / 2. + .5), v.z);
+}
 int main(int argc, char **argv)
 {
 	if (2 == argc)
@@ -102,28 +113,20 @@ int main(int argc, char **argv)
 		model = new Model("obj/african_head.obj");
 	}
 
-	TGAImage image(width, height, TGAImage::RGB);
-	Vec3f light_dir(0, 0, -1); // define light_dir
+	float *zbuffer = new float[width * height];
+	for (int i = width * height; i--; zbuffer[i] = -std::numeric_limits<float>::max())
+		;
 
+	TGAImage image(width, height, TGAImage::RGB);
 	for (int i = 0; i < model->nfaces(); i++)
 	{
 		std::vector<int> face = model->face(i);
-		Vec2i screen_coords[3];
-		Vec3f world_coords[3];
-		for (int j = 0; j < 3; j++)
-		{
-			Vec3f v = model->vert(face[j]);
-			screen_coords[j] = Vec2i((v.x + 1.) * width / 2., (v.y + 1.) * height / 2.);
-			world_coords[j] = v;
-		}
-		Vec3f n = (world_coords[2] - world_coords[0]) ^ (world_coords[1] - world_coords[0]);
-		n.normalize();
-		float intensity = n * light_dir;
-		if (intensity > 0)
-		{
-			triangle(screen_coords[0], screen_coords[1], screen_coords[2], image, TGAColor(intensity * 255, intensity * 255, intensity * 255, 255));
-		}
+		Vec3f pts[3];
+		for (int i = 0; i < 3; i++)
+			pts[i] = world2screen(model->vert(face[i]));
+		triangle(pts[0], pts[1], pts[2], zbuffer, image, TGAColor(rand() % 255, rand() % 255, rand() % 255, 255));
 	}
+
 	image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
 	image.write_tga_file("output.tga");
 	delete model;
