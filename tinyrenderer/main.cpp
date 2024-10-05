@@ -125,7 +125,7 @@ int main(int argc, char **argv)
 	TGAImage image(width, height, TGAImage::RGB);
 	TGAImage uvimage = TGAImage();
 	bool readSuccess = uvimage.read_tga_file("obj/african_head_diffuse.tga");
-	// have the origin at the left bottom corner of the image
+	// have the origin at the left top corner of the image
 	uvimage.flip_vertically();
 
 	if (readSuccess)
