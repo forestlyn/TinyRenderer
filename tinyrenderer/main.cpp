@@ -129,7 +129,7 @@ void triangle(Vec3f *pts, Vec3f *uvs, float *zbuffer, TGAImage &image, TGAImage 
 				color = uvImage.get(uv[0] * uvImage.get_width(), uv[1] * uvImage.get_height());
 				// printf("%f %f %f\n", uv.x, uv.y, uv.z);
 				// printf("%f %f %f\n", uvs[0].x, uvs[0].y, uvs[0].z);
-				image.set(int(x), int(y), red);
+				image.set(int(x), int(y), color);
 			}
 		}
 	}
@@ -172,7 +172,9 @@ int main(int argc, char **argv)
 			for (int i = 0; i < 3; i++)
 			{
 				Vec3f v = model->vert(face[i * 2]);
-				pts[i] = m2v(view * (Perspective * v2m(v)));
+				Vec3f temp = m2v(view * (Perspective * v2m(v)));
+				pts[i] = Vec3f(int(temp.x), int(temp.y), temp.z);
+				// pts[i] = temp;
 				uvs[i] = model->texture(face[i * 2 + 1]);
 			}
 			triangle(pts, uvs, zbuffer, image, uvimage);
