@@ -12,9 +12,39 @@ const TGAColor green = TGAColor(0, 255, 0, 255);
 const TGAColor blue = TGAColor(0, 0, 255, 255);
 
 Model *model = NULL;
+
 const int width = 800;
 const int height = 800;
+const int depth = 255;
 
+Vec3f camera(0, 0, 3);
+Vec3f m2v(Matrix m)
+{
+	return Vec3f(m[0][0] / m[3][0], m[1][0] / m[3][0], m[2][0] / m[3][0]);
+}
+
+Matrix v2m(Vec3f v)
+{
+	Matrix m(4, 1);
+	m[0][0] = v.x;
+	m[1][0] = v.y;
+	m[2][0] = v.z;
+	m[3][0] = 1.f;
+	return m;
+}
+
+Matrix viewport(int x, int y, int w, int h)
+{
+	Matrix m = Matrix::identity(4);
+	m[0][3] = x + w / 2.f;
+	m[1][3] = y + h / 2.f;
+	m[2][3] = depth / 2.f;
+
+	m[0][0] = w / 2.f;
+	m[1][1] = h / 2.f;
+	m[2][2] = depth / 2.f;
+	return m;
+}
 void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color)
 {
 	int dx = abs(x0 - x1);
@@ -51,7 +81,7 @@ void line(Vec2i t0, Vec2i t1, TGAImage &image, TGAColor color)
 
 Vec3f barycentric(Vec3f ab, Vec3f ac, Vec3f pa)
 {
-	Vec3f u = cross(Vec3f(ab.x, ac.x, pa.x), Vec3f(ab.y, ac.y, pa.y));
+	Vec3f u = (Vec3f(ab.x, ac.x, pa.x) ^ Vec3f(ab.y, ac.y, pa.y));
 	if (abs(u.z) < 1e-2)
 	{
 		return Vec3f(1, 1, -1);
@@ -92,13 +122,14 @@ void triangle(Vec3f *pts, Vec3f *uvs, float *zbuffer, TGAImage &image, TGAImage 
 			// printf("%f %f\n", zbuffer[int(x + y * width)], z);
 			if (zbuffer[int(x + y * width)] < z)
 			{
+				// printf("%f %f\n", zbuffer[int(x + y * width)], z);
 				zbuffer[int(x + y * width)] = z;
 				TGAColor color;
 				Vec3f uv = uvs[0] * res.x + uvs[1] * res.y + uvs[2] * res.z;
 				color = uvImage.get(uv[0] * uvImage.get_width(), uv[1] * uvImage.get_height());
 				// printf("%f %f %f\n", uv.x, uv.y, uv.z);
 				// printf("%f %f %f\n", uvs[0].x, uvs[0].y, uvs[0].z);
-				image.set(int(x), int(y), color);
+				image.set(int(x), int(y), red);
 			}
 		}
 	}
@@ -127,7 +158,9 @@ int main(int argc, char **argv)
 	bool readSuccess = uvimage.read_tga_file("obj/african_head_diffuse.tga");
 	// have the origin at the left top corner of the image
 	uvimage.flip_vertically();
-
+	Matrix Perspective = Matrix::identity(4);
+	Perspective[3][2] = -1. / camera.z;
+	Matrix view = viewport(0, 0, width, height);
 	if (readSuccess)
 	{
 		for (int i = 0; i < model->nfaces(); i++)
@@ -138,7 +171,8 @@ int main(int argc, char **argv)
 
 			for (int i = 0; i < 3; i++)
 			{
-				pts[i] = world2screen(model->vert(face[i * 2]));
+				Vec3f v = model->vert(face[i * 2]);
+				pts[i] = m2v(view * (Perspective * v2m(v)));
 				uvs[i] = model->texture(face[i * 2 + 1]);
 			}
 			triangle(pts, uvs, zbuffer, image, uvimage);
