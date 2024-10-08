@@ -18,6 +18,8 @@ const int height = 800;
 const int depth = 255;
 
 Vec3f camera(0, 0, 3);
+Vec3f lightdir(0, 0, -1);
+
 Vec3f m2v(Matrix m)
 {
 	return Vec3f(m[0][0] / m[3][0], m[1][0] / m[3][0], m[2][0] / m[3][0]);
@@ -95,7 +97,7 @@ Vec3f barycentric(Vec3f a, Vec3f b, Vec3f c, Vec3f p)
 	return barycentric(b - a, c - a, a - p);
 }
 
-void triangle(Vec3f *pts, Vec3f *uvs, float *zbuffer, TGAImage &image, TGAImage &uvImage)
+void triangle(Vec3f *pts, Vec3f *uvs, float *zbuffer, TGAImage &image, TGAImage &uvImage, float intensity)
 {
 	float minx = std::min(pts[0].x, pts[1].x);
 	minx = std::min(minx, pts[2].x);
@@ -129,7 +131,7 @@ void triangle(Vec3f *pts, Vec3f *uvs, float *zbuffer, TGAImage &image, TGAImage 
 				color = uvImage.get(uv[0] * uvImage.get_width(), uv[1] * uvImage.get_height());
 				// printf("%f %f %f\n", uv.x, uv.y, uv.z);
 				// printf("%f %f %f\n", uvs[0].x, uvs[0].y, uvs[0].z);
-				image.set(int(x), int(y), color);
+				image.set(int(x), int(y), color * intensity);
 			}
 		}
 	}
@@ -168,16 +170,21 @@ int main(int argc, char **argv)
 			std::vector<int> face = model->face(i);
 			Vec3f pts[3];
 			Vec3f uvs[3];
-
+			Vec3f world_verts[3];
 			for (int i = 0; i < 3; i++)
 			{
 				Vec3f v = model->vert(face[i * 2]);
+				world_verts[i] = v;
 				Vec3f temp = m2v(view * (Perspective * v2m(v)));
 				pts[i] = Vec3f(int(temp.x), int(temp.y), temp.z);
 				// pts[i] = temp;
 				uvs[i] = model->texture(face[i * 2 + 1]);
 			}
-			triangle(pts, uvs, zbuffer, image, uvimage);
+			Vec3f n = (world_verts[2] - world_verts[0]) ^ (world_verts[1] - world_verts[0]);
+			n.normalize();
+			float intensity = n * lightdir;
+			if (intensity > 0)
+				triangle(pts, uvs, zbuffer, image, uvimage, intensity);
 		}
 	}
 
