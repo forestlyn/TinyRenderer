@@ -59,7 +59,7 @@ Vec3f barycentric(Vec3f ab, Vec3f ac, Vec3f pa)
 
 Vec3f barycentric(Vec4f a, Vec4f b, Vec4f c, Vec4f p)
 {
-    return barycentric(Vec4To3(b - a), Vec4To3(c - a), Vec4To3(a - p));
+    return barycentric(Vec4To3(b) - Vec4To3(a), Vec4To3(c) - Vec4To3(a), Vec4To3(a) - Vec4To3(p));
 }
 void triangle(Vec4f *pts, IShader &shader, TGAImage &image, TGAImage &zbuffer)
 {
@@ -81,7 +81,9 @@ void triangle(Vec4f *pts, IShader &shader, TGAImage &image, TGAImage &zbuffer)
         {
             p[0] = x;
             p[1] = y;
+            p[3] = 1;
             Vec3f res = barycentric(pts[0], pts[1], pts[2], p);
+            // printf("%f %f %f\n", res.x, res.y, res.z);
             if (res.x < 0 || res.y < 0 || res.z < 0)
                 continue;
             float z = 0, w = 0;

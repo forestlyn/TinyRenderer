@@ -11,7 +11,7 @@ const int width = 800;
 const int height = 800;
 
 Vec3f light_dir = Vec3f(1, 1, 1).normalize();
-Vec3f camera(0, -1, 3);
+Vec3f camera(1, 1, 3);
 Vec3f center(0, 0, 0);
 Vec3f up(0, 1, 0);
 
