@@ -11,8 +11,8 @@ const int width = 800;
 const int height = 800;
 
 Vec3f light_dir = Vec3f(1, 1, 1).normalize();
-Vec3f camera(1, 1, 3);
-Vec3f center(0, 0, 0);
+Vec3f camera(0.5, 1, 2);
+Vec3f center(0, 0, 1);
 Vec3f up(0, 1, 0);
 
 struct GouraudShader : public IShader
@@ -83,6 +83,7 @@ struct PhongShader : public IShader
 	virtual bool fragment(Vec3f bar, TGAColor &color)
 	{
 		Vec2f uv = varying_uv * bar;
+		// Vec3f n = proj<3>(embed<4>(model->normal(uv))).normalize();
 		Vec3f n = proj<3>(uniform_MIT * embed<4>(model->normal(uv))).normalize();
 		Vec3f l = proj<3>(uniform_M * embed<4>(light_dir)).normalize();
 		Vec3f r = (n * (n * l * 2.f) - l).normalize(); // reflected light
@@ -103,7 +104,7 @@ int main(int argc, char **argv)
 	}
 	else
 	{
-		model = new Model("obj/african_head.obj");
+		model = new Model("obj/floor.obj");
 		// model = new Model("obj/diablo3_pose/diablo3_pose.obj");
 	}
 

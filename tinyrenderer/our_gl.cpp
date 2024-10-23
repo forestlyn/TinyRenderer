@@ -87,6 +87,19 @@ void triangle(Vec4f *pts, IShader &shader, TGAImage &image, TGAImage &zbuffer)
             if (res.x < 0 || res.y < 0 || res.z < 0)
                 continue;
             float z = 0, w = 0;
+            Vec3f c_revised = {0, 0, 0};
+            for (int i = 0; i < 3; ++i)
+            {
+                // 求α，β，γ,只需要除以pts第四个分量即可
+                c_revised[i] = res[i] / pts[i][3];
+            }
+            float Z_n = 1. / (c_revised[0] + c_revised[1] + c_revised[2]);
+            for (int i = 0; i < 3; ++i)
+            {
+                // 求正确透视下插值的系数
+                c_revised[i] *= Z_n;
+            }
+            // 调用片元着色器计算当前像素颜色
             z = res.x * pts[0][2] + res.y * pts[1][2] + res.z * pts[2][2];
             w = res.x * pts[0][3] + res.y * pts[1][3] + res.z * pts[2][3];
             int frag_depth = std::max(0, std::min(255, int(z / w + .5)));
@@ -94,7 +107,7 @@ void triangle(Vec4f *pts, IShader &shader, TGAImage &image, TGAImage &zbuffer)
 
             if (zbuffer.get(p[0], p[1])[0] < frag_depth)
             {
-                if (!shader.fragment(res, color))
+                if (!shader.fragment(c_revised, color))
                 {
                     zbuffer.set(p[0], p[1], TGAColor(frag_depth));
                     image.set(int(x), int(y), color);
