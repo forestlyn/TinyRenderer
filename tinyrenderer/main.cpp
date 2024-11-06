@@ -1,4 +1,5 @@
 #include <vector>
+#include <limits>
 #include <iostream>
 
 #include "tgaimage.h"
@@ -27,7 +28,7 @@ struct Shader : public IShader
 		varying_uv.set_col(nthvert, model->uv(iface, nthvert));
 		varying_nrm.set_col(nthvert, proj<3>((Projection * ModelView).invert_transpose() * embed<4>(model->normal(iface, nthvert), 0.f)));
 		Vec4f gl_Vertex = Projection * ModelView * embed<4>(model->vert(iface, nthvert));
-		varying_tri.set_col(nthvert, Viewport * gl_Vertex);
+		varying_tri.set_col(nthvert, gl_Vertex);
 		ndc_tri.set_col(nthvert, proj<3>(gl_Vertex / gl_Vertex[3]));
 		return gl_Vertex;
 	}
@@ -76,7 +77,6 @@ int main(int argc, char **argv)
 
 	TGAImage image(width, height, TGAImage::RGB);
 	TGAImage zbuffer(width, height, TGAImage::GRAYSCALE);
-	// GouraudShader shader = GouraudShader();
 	Shader shader = Shader();
 
 	viewport(width / 8, height / 8, width * 3 / 4, height * 3 / 4);
@@ -84,19 +84,23 @@ int main(int argc, char **argv)
 	projection(-1. / (camera - center).norm());
 	light_dir = proj<3>((Projection * ModelView * embed<4>(light_dir, 0.f))).normalize();
 
+	float *newzbuffer = new float[width * height];
+	for (int i = width * height; i--; newzbuffer[i] = -std::numeric_limits<float>::max())
+		;
+
 	for (int i = 0; i < model->nfaces(); i++)
 	{
-		Vec4f screen_coords[3];
 		for (int j = 0; j < 3; j++)
 		{
 			shader.vertex(i, j);
 		}
-		mat<3, 4, float> pts = shader.varying_tri.transpose();
+		Vec4f screen_coords[3];
+		mat<4, 3, float> pts = Viewport * shader.varying_tri;
 		for (int j = 0; j < 3; j++)
 		{
-			screen_coords[j] = pts[j];
+			screen_coords[j] = pts.col(j);
 		}
-		triangle(screen_coords, shader, image, zbuffer);
+		triangle(screen_coords, shader, image, newzbuffer);
 	}
 
 	printf("end");

@@ -21,7 +21,6 @@ void lookat(Vec3f eye, Vec3f center, Vec3f up)
         ModelView[2][i] = z[i];
         ModelView[i][3] = -center[i];
     }
-    // ModelView = view * subO;
 }
 
 void viewport(int x, int y, int w, int h)
@@ -61,7 +60,7 @@ Vec3f barycentric(Vec4f a, Vec4f b, Vec4f c, Vec4f p)
 {
     return barycentric(Vec4To3(b) - Vec4To3(a), Vec4To3(c) - Vec4To3(a), Vec4To3(a) - Vec4To3(p));
 }
-void triangle(Vec4f *pts, IShader &shader, TGAImage &image, TGAImage &zbuffer)
+void triangle(Vec4f *pts, IShader &shader, TGAImage &image, float *zbuffer)
 {
     float minx = std::min(pts[0][0] / pts[0][3], pts[1][0] / pts[1][3]);
     minx = std::min(minx, pts[2][0] / pts[2][3]);
@@ -105,11 +104,11 @@ void triangle(Vec4f *pts, IShader &shader, TGAImage &image, TGAImage &zbuffer)
             int frag_depth = std::max(0, std::min(255, int(z / w + .5)));
             // printf("%f %f %d %d %f %f\n", p[0], p[1], zbuffer.get(p[0], p[1])[0], frag_depth, z, w);
 
-            if (zbuffer.get(p[0], p[1])[0] < frag_depth)
+            if (zbuffer[x + y * image.get_width()] < frag_depth)
             {
                 if (!shader.fragment(c_revised, color))
                 {
-                    zbuffer.set(p[0], p[1], TGAColor(frag_depth));
+                    zbuffer[x + y * image.get_width()] = frag_depth;
                     image.set(int(x), int(y), color);
                     // printf("%f %f %d\n", p[0], p[1], frag_depth);
                 }
