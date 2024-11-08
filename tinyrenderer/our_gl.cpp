@@ -101,8 +101,8 @@ void triangle(Vec4f *pts, IShader &shader, TGAImage &image, float *zbuffer)
             // 调用片元着色器计算当前像素颜色
             z = res.x * pts[0][2] + res.y * pts[1][2] + res.z * pts[2][2];
             w = res.x * pts[0][3] + res.y * pts[1][3] + res.z * pts[2][3];
-            int frag_depth = std::max(0, std::min(255, int(z / w + .5)));
-            // printf("%f %f %d %d %f %f\n", p[0], p[1], zbuffer.get(p[0], p[1])[0], frag_depth, z, w);
+            int frag_depth = std::max(0, std::min((int)depth, int(z / w + .5)));
+            // printf("%f %f %d %f %f\n", p[0], p[1], frag_depth, z, w);
 
             if (zbuffer[x + y * image.get_width()] < frag_depth)
             {

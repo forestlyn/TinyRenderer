@@ -19,5 +19,5 @@ $(OBJECTS): %.o: %.cpp
 clean:
 	-del -f $(OBJECTS)
 	-del -f $(TARGET)
-	-del -f *.tga
+	# -del -f *.tga
 

@@ -89,11 +89,12 @@ int main(int argc, char **argv)
 	}
 	else
 	{
-		// model = new Model("obj/african_head/african_head.obj");
+		model = new Model("obj/african_head/african_head.obj");
 		model = new Model("obj/diablo3_pose/diablo3_pose.obj");
 		// model = new Model("obj/boggie/body.obj");
 		// model = new Model("obj/floor.obj");
 	}
+	printf("depth:%f\n", depth);
 	{
 		// rendering the shadow buffer
 		TGAImage depth(width, height, TGAImage::RGB);
