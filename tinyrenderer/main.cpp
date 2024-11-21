@@ -1,5 +1,6 @@
 #include <vector>
 #include <limits>
+#include <math.h>
 #include <iostream>
 #include "tgaimage.h"
 #include "model.h"
@@ -16,6 +17,9 @@ Vec3f light_dir(1, 1, 0);
 Vec3f camera(1, 1, 4);
 Vec3f center(0, 0, 0);
 Vec3f up(0, 1, 0);
+
+TGAImage total(1024, 1024, TGAImage::GRAYSCALE);
+TGAImage occl(1024, 1024, TGAImage::GRAYSCALE);
 
 struct DepthShader : public IShader
 {
@@ -39,48 +43,38 @@ struct DepthShader : public IShader
 	}
 };
 
-struct Shader : IShader
+struct VisibleShader : IShader
 {
-	mat<4, 4, float> uniform_M;
-	mat<4, 4, float> uniform_MIT;
-	mat<4, 4, float> uniform_Mshadow;
 	mat<2, 3, float> varying_uv;
-	mat<3, 3, float> varying_tri;
-
-	Shader(Matrix M, Matrix MIT, Matrix Mshadow) : uniform_M(M), uniform_MIT(MIT), uniform_Mshadow(Mshadow), varying_uv(), varying_tri()
+	mat<4, 3, float> varying_tri;
+	TGAImage image;
+	VisibleShader()
 	{
 	}
-
 	virtual Vec4f vertex(int iface, int nthvert)
 	{
-		varying_uv.set_col(nthvert, model->uv(iface, nthvert));
-		Vec4f gl_Vertex = embed<4>(model->vert(iface, nthvert)); // read the vertex from .obj file
-		gl_Vertex = Viewport * Projection * ModelView * gl_Vertex;
-		varying_tri.set_col(nthvert, proj<3>(gl_Vertex / gl_Vertex[3]));
-		return gl_Vertex;
+		Vec3f vert = model->vert(iface, nthvert);
+		Vec2f uv = model->uv(iface, nthvert);
+		varying_uv.set_col(nthvert, uv);
+		Vec4f screen_pts = Projection * ModelView * embed<4>(vert, 1.f);
+		varying_tri.set_col(nthvert, screen_pts);
 	}
-
 	virtual bool fragment(Vec3f bar, TGAColor &color)
 	{
-		Vec4f sb_p = uniform_Mshadow * embed<4>(varying_tri * bar);
-		sb_p = sb_p / sb_p[3];
-		int idx = int(sb_p[0]) + int(sb_p[1]) * width;
-		float shadow = .3 + 0.7 * (shadowbuffer[idx] < sb_p[2] + 4);
-		// shadow = 1;
 		Vec2f uv = varying_uv * bar;
-		Vec3f n = proj<3>(uniform_MIT * embed<4>(model->normal(uv))).normalize();
-		Vec3f l = proj<3>(uniform_M * embed<4>(light_dir)).normalize();
-		Vec3f r = (n * (n * l * 2.f) - l).normalize();
-
-		float spec = pow(std::max(r.z, 0.f), model->specular(uv));
-		float diff = std::max(0.f, n * l);
-		TGAColor c = model->diffuse(uv);
-		TGAColor glow = model->glow(uv);
-		for (int i = 0; i < 3; i++)
-			color[i] = std::min<float>(20 + c[i] * shadow * (1.2 * diff + .6 * spec) + glow[i] * 10, 255);
+		Vec4f pts = varying_tri * bar;
 		return false;
 	}
 };
+
+Vec3f randomPointInSphere()
+{
+	float u = (float)rand() / (float)RAND_MAX;
+	float v = (float)rand() / (float)RAND_MAX;
+	float alpha = u * 2 * M_PI;
+	float beta = v * M_PI;
+	return Vec3f(sin(beta) * cos(alpha), sin(beta) * sin(alpha), cos(beta));
+}
 
 int main(int argc, char **argv)
 {
@@ -95,36 +89,32 @@ int main(int argc, char **argv)
 		// model = new Model("obj/boggie/body.obj");
 		// model = new Model("obj/floor.obj");
 	}
-	printf("depth:%f\n", depth);
-	{
-		// rendering the shadow buffer
-		TGAImage depth(width, height, TGAImage::RGB);
-		lookat(light_dir, center, up);
-		viewport(width / 8, height / 8, width * 3 / 4, height * 3 / 4);
-		projection(0);
+	// printf("depth:%f\n", depth);
 
-		shadowbuffer = new float[width * height];
+	const int randomPointsNum = 1000;
 
-		DepthShader depthshader;
-		Vec4f screen_coords[3];
-		for (int i = 0; i < model->nfaces(); i++)
-		{
-			for (int j = 0; j < 3; j++)
-			{
-				screen_coords[j] = depthshader.vertex(i, j);
-			}
-			triangle(screen_coords, depthshader, depth, shadowbuffer);
-		}
-		depth.flip_vertically(); // to place the origin in the bottom left corner of the image
-		depth.write_tga_file("depth.tga");
-	}
-
+	TGAImage sphereImage(width, height, TGAImage::RGB);
+	// draw sphere
+	viewport(width / 8, height / 8, width * 3 / 4, height * 3 / 4);
+	lookat(camera, center, up);
+	projection(-1. / (camera - center).norm());
 	Matrix M = Viewport * Projection * ModelView;
+	for (int i = 0; i < randomPointsNum; i++)
+	{
+		Vec3f pts = randomPointInSphere();
+		Vec4f point = M * embed<4>(pts, 1.0f);
+		// printf("%d %d %d\n", int(point[0] / point[3]), int(point[1] / point[3]), int(point[2] / point[3]));
+		sphereImage.set(int(point[0] / point[3]), int(point[1] / point[3]), white);
+	}
+	sphereImage.flip_vertically(); // i want to have the origin at the left bottom corner of the image
+	sphereImage.write_tga_file("sphereImage.tga");
+
+	M = Viewport * Projection * ModelView;
 
 	{
 		// rendering the frame buffer
 		TGAImage image(width, height, TGAImage::RGB);
-		Shader shader(ModelView, (Projection * ModelView).invert_transpose(), M * (Viewport * Projection * ModelView).invert());
+		// Shader shader(ModelView, (Projection * ModelView).invert_transpose(), M * (Viewport * Projection * ModelView).invert());
 
 		viewport(width / 8, height / 8, width * 3 / 4, height * 3 / 4);
 		lookat(camera, center, up);
@@ -135,16 +125,16 @@ int main(int argc, char **argv)
 		for (int i = width * height; i--; newzbuffer[i] = -std::numeric_limits<float>::max())
 			;
 
-		for (int i = 0; i < model->nfaces(); i++)
-		{
-			Vec4f screen_coords[3];
+		// for (int i = 0; i < model->nfaces(); i++)
+		// {
+		// 	Vec4f screen_coords[3];
 
-			for (int j = 0; j < 3; j++)
-			{
-				screen_coords[j] = shader.vertex(i, j);
-			}
-			triangle(screen_coords, shader, image, newzbuffer);
-		}
+		// 	for (int j = 0; j < 3; j++)
+		// 	{
+		// 		screen_coords[j] = shader.vertex(i, j);
+		// 	}
+		// 	triangle(screen_coords, shader, image, newzbuffer);
+		// }
 
 		printf("end");
 		image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
