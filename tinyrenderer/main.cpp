@@ -76,6 +76,16 @@ Vec3f randomPointInSphere()
 	return Vec3f(sin(beta) * cos(alpha), sin(beta) * sin(alpha), cos(beta));
 }
 
+Vec3f randomPointInSphereCorrect()
+{
+	float u = (float)rand() / (float)RAND_MAX;
+	float v = (float)rand() / (float)RAND_MAX;
+	u = u * 2 - 1;
+	float theta = v * 2 * M_PI;
+	float r = sqrt(1 - u * u);
+	return Vec3f(r * cos(theta), r * sin(theta), u);
+}
+
 int main(int argc, char **argv)
 {
 	if (2 == argc)
@@ -101,7 +111,7 @@ int main(int argc, char **argv)
 	Matrix M = Viewport * Projection * ModelView;
 	for (int i = 0; i < randomPointsNum; i++)
 	{
-		Vec3f pts = randomPointInSphere();
+		Vec3f pts = randomPointInSphereCorrect();
 		Vec4f point = M * embed<4>(pts, 1.0f);
 		// printf("%d %d %d\n", int(point[0] / point[3]), int(point[1] / point[3]), int(point[2] / point[3]));
 		sphereImage.set(int(point[0] / point[3]), int(point[1] / point[3]), white);
