@@ -103,7 +103,7 @@ int main(int argc, char **argv)
 
 	// printf("depth:%f\n", depth);
 	srand(time(NULL));
-	const int randomPointsNum = 2;
+	int randomPointsNum = 20000;
 
 	TGAImage sphereImage(width, height, TGAImage::RGB);
 	// draw sphere
@@ -120,7 +120,7 @@ int main(int argc, char **argv)
 	}
 	sphereImage.flip_vertically(); // i want to have the origin at the left bottom corner of the image
 	sphereImage.write_tga_file("sphereImage.tga");
-
+	sphereImage.clear();
 	for (int i = 0; i < randomPointsNum; i++)
 	{
 		Vec3f pts = randomPointInSphereCorrect();
@@ -132,7 +132,7 @@ int main(int argc, char **argv)
 	sphereImage.write_tga_file("sphereImageCorrect.tga");
 
 	M = Viewport * Projection * ModelView;
-
+	randomPointsNum = 0;
 	{
 
 		for (int iter = 0; iter < randomPointsNum; iter++)
