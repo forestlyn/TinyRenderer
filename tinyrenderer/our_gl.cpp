@@ -106,7 +106,7 @@ void triangle(Vec4f *pts, IShader &shader, TGAImage &image, float *zbuffer)
 
             if (zbuffer[x + y * image.get_width()] < frag_depth)
             {
-                if (!shader.fragment(c_revised, color))
+                if (!shader.fragment(Vec3f(p[0], p[1], frag_depth), c_revised, color))
                 {
                     zbuffer[x + y * image.get_width()] = frag_depth;
                     image.set(int(x), int(y), color);
