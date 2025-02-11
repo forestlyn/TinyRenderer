@@ -22,6 +22,8 @@ Vec3f up(0, 1, 0);
 TGAImage total(1024, 1024, TGAImage::GRAYSCALE);
 TGAImage occl(1024, 1024, TGAImage::GRAYSCALE);
 
+TGAImage output(width, height, TGAImage::RGB);
+
 struct ZShader : public IShader
 {
 	mat<4, 3, float> varying_tri;
@@ -61,6 +63,28 @@ struct Shader : IShader
 			occl.set((int)(uv.x * 1024), (int)(uv.y * 1024), TGAColor(255));
 		}
 		color = TGAColor(255, 0, 0);
+		return false;
+	}
+};
+
+struct MyShader : IShader
+{
+	mat<2, 3, float> varying_uv;
+	mat<4, 3, float> varying_tri;
+
+	virtual Vec4f vertex(int iface, int nthvert)
+	{
+		varying_uv.set_col(nthvert, model->uv(iface, nthvert));
+		Vec4f gl_Vertex = Projection * ModelView * embed<4>(model->vert(iface, nthvert));
+		varying_tri.set_col(nthvert, gl_Vertex);
+		return Viewport * gl_Vertex;
+	}
+
+	virtual bool fragment(Vec3f gl_FragCoord, Vec3f bar, TGAColor &color)
+	{
+		Vec2f uv = varying_uv * bar;
+		int t = total.get(uv.x * 1024, uv.y * 1024)[0];
+		color = TGAColor(t, t, t);
 		return false;
 	}
 };
@@ -105,94 +129,113 @@ int main(int argc, char **argv)
 
 	// printf("depth:%f\n", depth);
 	srand(time(NULL));
-	int randomPointsNum = 100;
+	// int randomPointsNum = 100;
 
-	TGAImage sphereImage(width, height, TGAImage::RGB);
-	// draw sphere
-	viewport(width / 8, height / 8, width * 3 / 4, height * 3 / 4);
+	// TGAImage sphereImage(width, height, TGAImage::RGB);
+	// // draw sphere
+	// viewport(width / 8, height / 8, width * 3 / 4, height * 3 / 4);
+	// lookat(camera, center, up);
+	// projection(-1. / (camera - center).norm());
+	// Matrix M = Viewport * Projection * ModelView;
+	// for (int i = 0; i < randomPointsNum; i++)
+	// {
+	// 	Vec3f pts = randomPointInSphere();
+	// 	Vec4f point = M * embed<4>(pts, 1.0f);
+	// 	// printf("%d %d %d\n", int(point[0] / point[3]), int(point[1] / point[3]), int(point[2] / point[3]));
+	// 	sphereImage.set(int(point[0] / point[3]), int(point[1] / point[3]), white);
+	// }
+	// sphereImage.flip_vertically(); // i want to have the origin at the left bottom corner of the image
+	// sphereImage.write_tga_file("sphereImage.tga");
+	// sphereImage.clear();
+	// for (int i = 0; i < randomPointsNum; i++)
+	// {
+	// 	Vec3f pts = randomPointInSphereCorrect();
+	// 	Vec4f point = M * embed<4>(pts, 1.0f);
+	// 	// printf("%d %d %d\n", int(point[0] / point[3]), int(point[1] / point[3]), int(point[2] / point[3]));
+	// 	sphereImage.set(int(point[0] / point[3]), int(point[1] / point[3]), white);
+	// }
+	// sphereImage.flip_vertically(); // i want to have the origin at the left bottom corner of the image
+	// sphereImage.write_tga_file("sphereImageCorrect.tga");
+
+	// M = Viewport * Projection * ModelView;
+	// randomPointsNum = 1000;
+	// {
+
+	// 	for (int iter = 1; iter <= randomPointsNum; iter++)
+	// 	{
+	// 		printf("iter:%d\n", iter);
+	// 		for (int i = 0; i < 3; i++)
+	// 			up[i] = (float)rand() / (float)RAND_MAX;
+	// 		camera = randomPointInSphereCorrect();
+	// 		camera.y = std::abs(camera.y);
+	// 		for (int i = width * height; i--; shadowbuffer[i] = zbuffer[i] = -std::numeric_limits<float>::max())
+	// 			;
+
+	// 		TGAImage frame(width, height, TGAImage::RGB);
+	// 		lookat(camera, center, up);
+	// 		viewport(width / 8, height / 8, width * 3 / 4, height * 3 / 4);
+	// 		projection(0);
+	// 		M = Viewport * Projection * ModelView;
+
+	// 		ZShader zshader;
+	// 		// printf("model->nfaces():%d\n", model->nfaces());
+	// 		for (int i = 0; i < model->nfaces(); i++)
+	// 		{
+	// 			Vec4f screen_coords[3];
+
+	// 			for (int j = 0; j < 3; j++)
+	// 			{
+	// 				screen_coords[j] = zshader.vertex(i, j);
+	// 			}
+	// 			triangle(screen_coords, zshader, frame, shadowbuffer);
+	// 		}
+	// 		frame.flip_vertically();
+	// 		frame.write_tga_file("framebuffer.tga");
+	// 		Shader shader;
+	// 		occl.clear();
+	// 		for (int i = 0; i < model->nfaces(); i++)
+	// 		{
+	// 			Vec4f screen_coords[3];
+	// 			for (int j = 0; j < 3; j++)
+	// 			{
+	// 				screen_coords[j] = shader.vertex(i, j);
+	// 			}
+	// 			triangle(screen_coords, shader, frame, zbuffer);
+	// 		}
+	// 		occl.write_tga_file("occl.tga");
+
+	// 		//        occl.gaussian_blur(5);
+	// 		for (int i = 0; i < 1024; i++)
+	// 		{
+	// 			for (int j = 0; j < 1024; j++)
+	// 			{
+	// 				float tmp = total.get(i, j)[0];
+	// 				total.set(i, j, TGAColor((tmp * (iter - 1) + occl.get(i, j)[0]) / (float)iter + .5f));
+	// 			}
+	// 		}
+	// 	}
+	// 	total.flip_vertically();
+	// 	total.write_tga_file("occlusion.tga");
+	// 	occl.flip_vertically();
+	// 	occl.write_tga_file("occl.tga");
+	// }
+	total.read_tga_file("occlusion.tga");
+	for (int i = width * height; i--; shadowbuffer[i] = zbuffer[i] = -std::numeric_limits<float>::max())
+		;
+	camera = Vec3f(1, 1, 4);
 	lookat(camera, center, up);
+	viewport(width / 8, height / 8, width * 3 / 4, height * 3 / 4);
 	projection(-1. / (camera - center).norm());
-	Matrix M = Viewport * Projection * ModelView;
-	for (int i = 0; i < randomPointsNum; i++)
+	MyShader myShader;
+	for (int i = 0; i < model->nfaces(); i++)
 	{
-		Vec3f pts = randomPointInSphere();
-		Vec4f point = M * embed<4>(pts, 1.0f);
-		// printf("%d %d %d\n", int(point[0] / point[3]), int(point[1] / point[3]), int(point[2] / point[3]));
-		sphereImage.set(int(point[0] / point[3]), int(point[1] / point[3]), white);
-	}
-	sphereImage.flip_vertically(); // i want to have the origin at the left bottom corner of the image
-	sphereImage.write_tga_file("sphereImage.tga");
-	sphereImage.clear();
-	for (int i = 0; i < randomPointsNum; i++)
-	{
-		Vec3f pts = randomPointInSphereCorrect();
-		Vec4f point = M * embed<4>(pts, 1.0f);
-		// printf("%d %d %d\n", int(point[0] / point[3]), int(point[1] / point[3]), int(point[2] / point[3]));
-		sphereImage.set(int(point[0] / point[3]), int(point[1] / point[3]), white);
-	}
-	sphereImage.flip_vertically(); // i want to have the origin at the left bottom corner of the image
-	sphereImage.write_tga_file("sphereImageCorrect.tga");
-
-	M = Viewport * Projection * ModelView;
-	randomPointsNum = 1000;
-	{
-
-		for (int iter = 1; iter <= randomPointsNum; iter++)
+		Vec4f screen_coords[3];
+		for (int j = 0; j < 3; j++)
 		{
-			printf("iter:%d\n", iter);
-			for (int i = 0; i < 3; i++)
-				up[i] = (float)rand() / (float)RAND_MAX;
-			camera = randomPointInSphereCorrect();
-			camera.y = std::abs(camera.y);
-			for (int i = width * height; i--; shadowbuffer[i] = zbuffer[i] = -std::numeric_limits<float>::max())
-				;
-
-			TGAImage frame(width, height, TGAImage::RGB);
-			lookat(camera, center, up);
-			viewport(width / 8, height / 8, width * 3 / 4, height * 3 / 4);
-			projection(0);
-			M = Viewport * Projection * ModelView;
-
-			ZShader zshader;
-			// printf("model->nfaces():%d\n", model->nfaces());
-			for (int i = 0; i < model->nfaces(); i++)
-			{
-				Vec4f screen_coords[3];
-
-				for (int j = 0; j < 3; j++)
-				{
-					screen_coords[j] = zshader.vertex(i, j);
-				}
-				triangle(screen_coords, zshader, frame, shadowbuffer);
-			}
-			frame.flip_vertically();
-			frame.write_tga_file("framebuffer.tga");
-			Shader shader;
-			occl.clear();
-			for (int i = 0; i < model->nfaces(); i++)
-			{
-				Vec4f screen_coords[3];
-				for (int j = 0; j < 3; j++)
-				{
-					screen_coords[j] = shader.vertex(i, j);
-				}
-				triangle(screen_coords, shader, frame, zbuffer);
-			}
-			occl.write_tga_file("occl.tga");
-
-			//        occl.gaussian_blur(5);
-			for (int i = 0; i < 1024; i++)
-			{
-				for (int j = 0; j < 1024; j++)
-				{
-					float tmp = total.get(i, j)[0];
-					total.set(i, j, TGAColor((tmp * (iter - 1) + occl.get(i, j)[0]) / (float)iter + .5f));
-				}
-			}
+			screen_coords[j] = myShader.vertex(i, j);
 		}
-		total.flip_vertically();
-		total.write_tga_file("occlusion.tga");
-		occl.flip_vertically();
-		occl.write_tga_file("occl.tga");
+		triangle(screen_coords, myShader, output, zbuffer);
 	}
+	output.flip_vertically();
+	output.write_tga_file("output.tga");
 }
