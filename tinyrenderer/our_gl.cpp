@@ -104,6 +104,7 @@ void triangle(Vec4f *pts, IShader &shader, TGAImage &image, float *zbuffer)
             int frag_depth = std::max(0, std::min((int)depth, int(z / w + .5)));
             // printf("%f %f %d %f %f\n", p[0], p[1], frag_depth, z, w);
 
+            // printf("%d %d %f %d \n", x, y, zbuffer[x + y * image.get_width()], frag_depth);
             if (zbuffer[x + y * image.get_width()] < frag_depth)
             {
                 if (!shader.fragment(Vec3f(p[0], p[1], frag_depth), c_revised, color))

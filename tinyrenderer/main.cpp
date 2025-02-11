@@ -19,8 +19,9 @@ Vec3f camera(1, 1, 4);
 Vec3f center(0, 0, 0);
 Vec3f up(0, 1, 0);
 
-TGAImage total(1024, 1024, TGAImage::RGB);
-TGAImage occl(1024, 1024, TGAImage::RGB);
+TGAImage total(1024, 1024, TGAImage::GRAYSCALE);
+TGAImage occl(1024, 1024, TGAImage::GRAYSCALE);
+
 struct ZShader : public IShader
 {
 	mat<4, 3, float> varying_tri;
@@ -29,12 +30,13 @@ struct ZShader : public IShader
 	{
 		Vec4f gl_Vertex = Projection * ModelView * embed<4>(model->vert(iface, nthvert));
 		varying_tri.set_col(nthvert, gl_Vertex);
-		return gl_Vertex;
+		return Viewport * gl_Vertex;
 	}
 
 	virtual bool fragment(Vec3f gl_FragCoord, Vec3f bar, TGAColor &color)
 	{
-		color = TGAColor(255, 255, 255) * ((gl_FragCoord.z + 1.f) / 2.f);
+		float z = bar * varying_tri[2];
+		color = TGAColor(255, 255, 255) * ((z + 1.f) / 2.f);
 		return false;
 	}
 };
@@ -47,7 +49,7 @@ struct Shader : IShader
 		varying_uv.set_col(nthvert, model->uv(iface, nthvert));
 		Vec4f gl_Vertex = Projection * ModelView * embed<4>(model->vert(iface, nthvert));
 		varying_tri.set_col(nthvert, gl_Vertex);
-		return gl_Vertex;
+		return Viewport * gl_Vertex;
 	}
 
 	virtual bool fragment(Vec3f gl_FragCoord, Vec3f bar, TGAColor &color)
@@ -55,8 +57,8 @@ struct Shader : IShader
 		Vec2f uv = varying_uv * bar;
 		if (std::abs(shadowbuffer[int(gl_FragCoord.x + gl_FragCoord.y * width)] - gl_FragCoord.z < 1e-2))
 		{
-			printf("occl\n");
-			occl.set((int)(uv.x * 1024), (int)(uv.y * 1024), red);
+			// printf("occl\n");
+			occl.set((int)(uv.x * 1024), (int)(uv.y * 1024), TGAColor(255));
 		}
 		color = TGAColor(255, 0, 0);
 		return false;
@@ -90,7 +92,7 @@ int main(int argc, char **argv)
 	}
 	else
 	{
-		model = new Model("obj/african_head/african_head.obj");
+		// model = new Model("obj/african_head/african_head.obj");
 		model = new Model("obj/diablo3_pose/diablo3_pose.obj");
 		// model = new Model("obj/boggie/body.obj");
 		// model = new Model("obj/floor.obj");
@@ -103,7 +105,7 @@ int main(int argc, char **argv)
 
 	// printf("depth:%f\n", depth);
 	srand(time(NULL));
-	int randomPointsNum = 20000;
+	int randomPointsNum = 100;
 
 	TGAImage sphereImage(width, height, TGAImage::RGB);
 	// draw sphere
@@ -132,10 +134,10 @@ int main(int argc, char **argv)
 	sphereImage.write_tga_file("sphereImageCorrect.tga");
 
 	M = Viewport * Projection * ModelView;
-	randomPointsNum = 0;
+	randomPointsNum = 1000;
 	{
 
-		for (int iter = 0; iter < randomPointsNum; iter++)
+		for (int iter = 1; iter <= randomPointsNum; iter++)
 		{
 			printf("iter:%d\n", iter);
 			for (int i = 0; i < 3; i++)
@@ -149,7 +151,10 @@ int main(int argc, char **argv)
 			lookat(camera, center, up);
 			viewport(width / 8, height / 8, width * 3 / 4, height * 3 / 4);
 			projection(0);
+			M = Viewport * Projection * ModelView;
+
 			ZShader zshader;
+			// printf("model->nfaces():%d\n", model->nfaces());
 			for (int i = 0; i < model->nfaces(); i++)
 			{
 				Vec4f screen_coords[3];
@@ -167,14 +172,13 @@ int main(int argc, char **argv)
 			for (int i = 0; i < model->nfaces(); i++)
 			{
 				Vec4f screen_coords[3];
-
 				for (int j = 0; j < 3; j++)
 				{
 					screen_coords[j] = shader.vertex(i, j);
 				}
 				triangle(screen_coords, shader, frame, zbuffer);
 			}
-			occl.write_tga_file("occl1.tga");
+			occl.write_tga_file("occl.tga");
 
 			//        occl.gaussian_blur(5);
 			for (int i = 0; i < 1024; i++)
