@@ -83,7 +83,8 @@ struct MyShader : IShader
 	virtual bool fragment(Vec3f gl_FragCoord, Vec3f bar, TGAColor &color)
 	{
 		Vec2f uv = varying_uv * bar;
-		int t = total.get(uv.x * 1024, uv.y * 1024)[0];
+		int t = total.get(int(uv.x * 1024), int(uv.y * 1024))[0];
+		// printf("%d %d %d\n", int(uv.x * 1024), int(uv.y * 1024), t);
 		color = TGAColor(t, t, t);
 		return false;
 	}
@@ -220,6 +221,7 @@ int main(int argc, char **argv)
 	// 	occl.write_tga_file("occl.tga");
 	// }
 	total.read_tga_file("occlusion.tga");
+	total.flip_vertically();
 	for (int i = width * height; i--; shadowbuffer[i] = zbuffer[i] = -std::numeric_limits<float>::max())
 		;
 	camera = Vec3f(1, 1, 4);

@@ -98,12 +98,12 @@ void triangle(Vec4f *pts, IShader &shader, TGAImage &image, float *zbuffer)
                 // 求正确透视下插值的系数
                 c_revised[i] *= Z_n;
             }
-            // 调用片元着色器计算当前像素颜色
             z = res.x * pts[0][2] + res.y * pts[1][2] + res.z * pts[2][2];
             w = res.x * pts[0][3] + res.y * pts[1][3] + res.z * pts[2][3];
             int frag_depth = std::max(0, std::min((int)depth, int(z / w + .5)));
             // printf("%f %f %d %f %f\n", p[0], p[1], frag_depth, z, w);
 
+            // 调用片元着色器计算当前像素颜色
             // printf("%d %d %f %d \n", x, y, zbuffer[x + y * image.get_width()], frag_depth);
             if (zbuffer[x + y * image.get_width()] < frag_depth)
             {
