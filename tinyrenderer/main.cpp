@@ -1,107 +1,55 @@
+#include <GL/glu.h>
+#include <GL/glut.h>
 #include <vector>
-#include <limits>
-#include <math.h>
-#include <iostream>
-#include "tgaimage.h"
-#include "model.h"
-#include "geometry.h"
-#include "our_gl.h"
-#include <time.h>
+#include <cmath>
 
-using namespace std;
-Model *model = NULL;
-const int width = 800;
-const int height = 800;
+const int SCREEN_WIDTH  = 1024;
+const int SCREEN_HEIGHT = 1024;
+const float camera[]           = {.6,0,1};
+const float light0_position[4] = {1,1,1,0};
 
-Vec3f light_dir(1, 1, 0);
-Vec3f camera(1, 1, 4);
-Vec3f center(0, 0, 0);
-Vec3f up(0, 1, 0);
-
-TGAImage output(width, height, TGAImage::RGB);
-
-struct ZShader : public IShader
-{
-	mat<4, 3, float> varying_tri;
-	virtual Vec4f vertex(int iface, int nthvert)
-	{
-		Vec4f gl_Vertex = Projection * ModelView * embed<4>(model->vert(iface, nthvert));
-		varying_tri.set_col(nthvert, gl_Vertex);
-		return Viewport * gl_Vertex;
-	}
-	virtual bool fragment(Vec3f gl_FragCoord, Vec3f bar, TGAColor &color)
-	{
-		// float z = bar * varying_tri[2];
-		// color = TGAColor(255, 255, 255) * ((z + 1.f) / 2.f);
-		color = TGAColor(0, 0, 0);
-		return false;
-	}
-};
-float max_elevation_angle(float *zbuffer, Vec2f pos, Vec2f dir)
-{
-	float angle = 0;
-	for (float t = 0; t < 1000.; t += 1)
-	{
-		Vec2f tempPos = pos + Vec2f(dir.x * t, dir.y * t);
-		// printf("%f\n", t);
-		if (tempPos.x < 0 || tempPos.y < 0 || tempPos.x >= width || tempPos.y >= height)
-			return angle;
-		double distance = sqrt(pow((tempPos - pos).x, 2) + pow(tempPos.y - pos.y, 2));
-		if (distance < 1)
-			continue;
-		float z_delta = zbuffer[(int)tempPos.x + int(tempPos.y) * width] - zbuffer[(int)(pos.x) + int(pos.y) * width];
-		angle = max(angle, atanf(z_delta / distance));
-	}
-	return angle;
+void render_scene(void) {
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glLoadIdentity();
+	gluLookAt(camera[0], camera[1], camera[2], 0,  0, 0, 0, 1, 0);
+	glColor3f(.8, 0., 0.);
+	glutSolidTeapot(.7);
+	glutSwapBuffers();
 }
-int main(int argc, char **argv)
-{
-	if (2 == argc)
-	{
-		model = new Model(argv[1]);
+
+void process_keys(unsigned char key, int x, int y) {
+	if (27==key) {
+		exit(0);
 	}
-	else
-	{
-		model = new Model("obj/african_head/african_head.obj");
-		// model = new Model("obj/diablo3_pose/diablo3_pose.obj");
-		//  model = new Model("obj/boggie/body.obj");
-		//  model = new Model("obj/floor.obj");
-	}
-	float *zbuffer = new float[width * height];
-	for (int i = width * height; i--; zbuffer[i] = -std::numeric_limits<float>::max())
-		;
-	camera = Vec3f(1, 1, 4);
-	lookat(camera, center, up);
-	viewport(width / 8, height / 8, width * 3 / 4, height * 3 / 4);
-	projection(-1. / (camera - center).norm());
-	ZShader zshader;
-	for (int i = 0; i < model->nfaces(); i++)
-	{
-		Vec4f screen_coords[3];
-		for (int j = 0; j < 3; j++)
-		{
-			screen_coords[j] = zshader.vertex(i, j);
-		}
-		triangle(screen_coords, zshader, output, zbuffer);
-	}
-	int dir_count = 8;
-	for (int i = 0; i < width; i++)
-	{
-		for (int j = 0; j < height; j++)
-		{
-			if (zbuffer[i + j * width] < -1e5)
-				continue;
-			// printf("%d %d\n", i, j);
-			float t = 0;
-			for (float angle = 0; angle < M_PI * 2 - 1e-4; angle += M_PI / dir_count * 2)
-			{
-				t += M_PI / 2 - max_elevation_angle(zbuffer, Vec2f(i, j), Vec2f(cos(angle), sin(angle)));
-			}
-			t /= (M_PI / 2) * dir_count;
-			t = pow(t, 1);
-			output.set(i, j, TGAColor(t * 255, t * 255, t * 255));
-		}
-	}
-	output.flip_vertically();
-	output.write_tga_file("output.tga");
 }
+
+void change_size(int w, int h) {
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+    glViewport(0, 0, w, h);
+	glOrtho(-1,1,-1,1,-1,8);
+	glMatrixMode(GL_MODELVIEW);
+}
+
+int main(int argc, char **argv) {
+	glutInit(&argc, argv);
+	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
+	glutInitWindowPosition(100,100);
+	glutInitWindowSize(SCREEN_WIDTH, SCREEN_HEIGHT);
+	glutCreateWindow("GLSL tutorial");
+	glClearColor(0.0,0.0,1.0,1.0);
+
+	glutDisplayFunc(render_scene);
+	glutReshapeFunc(change_size);
+	glutKeyboardFunc(process_keys);
+
+	glEnable(GL_COLOR_MATERIAL);
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_LIGHTING);
+	glEnable(GL_LIGHT0);
+	glLightfv(GL_LIGHT0, GL_POSITION, light0_position);
+
+	glutMainLoop();
+	return 0;
+}
+

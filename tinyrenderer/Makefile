@@ -1,7 +1,7 @@
 SYSCONF_LINK = g++
 CPPFLAGS     =
 LDFLAGS      =
-LIBS         = -lm
+LIBS         = -lm -lGL -lglut -lGLU
 
 DESTDIR = ./
 TARGET  = main
@@ -17,7 +17,6 @@ $(OBJECTS): %.o: %.cpp
 	$(SYSCONF_LINK) -Wall $(CPPFLAGS) -c $(CFLAGS) $< -o $@
 
 clean:
-	-del -f $(OBJECTS)
-	-del -f $(TARGET).exe
-# -del -f *.tga
+	-rm -f $(OBJECTS)
+	-rm -f $(TARGET)
 
