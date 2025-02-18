@@ -6,8 +6,9 @@
 #include <vector>
 #include <cmath>
 
-#define USE_SHADER 0
+#define RENDER_SPHERES_INSTEAD_OF_VERTICES 0
 GLuint prog_hdlr;
+GLint location_attribute_0, location_viewport;
 
 const int SCREEN_WIDTH = 1024;
 const int SCREEN_HEIGHT = 1024;
@@ -30,8 +31,8 @@ void render_scene(void)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glLoadIdentity();
 	gluLookAt(camera[0], camera[1], camera[2], 0, 0, 0, 0, 1, 0);
-
-	for (int i = 0; i < atom_count; i++)
+#if RENDER_SPHERES_INSTEAD_OF_VERTICES
+	for (int i = 0; i < NATOMS; i++)
 	{
 		glColor3f(atoms[i][4], atoms[i][5], atoms[i][6]);
 		glPushMatrix();
@@ -39,6 +40,22 @@ void render_scene(void)
 		glutSolidSphere(atoms[i][3], 16, 16);
 		glPopMatrix();
 	}
+#else
+	glUseProgram(prog_hdlr);
+	GLfloat viewport[4];
+	glGetFloatv(GL_VIEWPORT, viewport);
+	glUniform4fv(location_viewport, 1, viewport);
+	// printf("viewport: %f %f %f %f\n", viewport[0], viewport[1], viewport[2], viewport[3]);
+	glBegin(GL_POINTS);
+	for (int i = 0; i < atom_count; i++)
+	{
+		glColor3f(atoms[i][4], atoms[i][5], atoms[i][6]);
+		glVertexAttrib1f(location_attribute_0, atoms[i][3]);
+		glVertex3f(atoms[i][0], atoms[i][1], atoms[i][2]);
+	}
+	glEnd();
+	glUseProgram(0);
+#endif
 	glutSwapBuffers();
 }
 
@@ -58,7 +75,6 @@ void change_size(int w, int h)
 	glOrtho(-1, 1, -1, 1, -1, 8);
 	glMatrixMode(GL_MODELVIEW);
 }
-#if USE_SHADER
 void printInfoLog(GLuint obj)
 {
 	int log_size = 0;
@@ -105,7 +121,6 @@ void setShaders(GLuint &prog_hdlr, const char *vsfile, const char *fsfile)
 	std::cerr << "info log for the linked program" << std::endl;
 	printInfoLog(prog_hdlr);
 }
-#endif
 int main(int argc, char **argv)
 {
 	for (int i = 0; i < atom_count; i++)
@@ -140,7 +155,7 @@ int main(int argc, char **argv)
 	glEnable(GL_LIGHT0);
 	glLightfv(GL_LIGHT0, GL_POSITION, light0_position);
 
-#if USE_SHADER
+#if !RENDER_SPHERES_INSTEAD_OF_VERTICES
 	glewInit();
 	if (GLEW_ARB_vertex_shader && GLEW_ARB_fragment_shader && GL_EXT_geometry_shader4)
 		std::cout << "Ready for GLSL - vertex, fragment, and geometry units" << std::endl;
@@ -150,9 +165,12 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 	setShaders(prog_hdlr, "shaders/vert_shader.glsl", "shaders/frag_shader.glsl");
-	glUseProgram(prog_hdlr);
-#endif
 
+	location_attribute_0 = glGetAttribLocation(prog_hdlr, "radius_attr"); // radius
+	location_viewport = glGetUniformLocation(prog_hdlr, "viewport");	  // viewport
+
+	glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
+#endif
 	glutMainLoop();
 	return 0;
 }
